@@ -1,6 +1,7 @@
 import prisma from "../config/prisma";
 import { Board, Card } from "../types/card";
-import { CreateCardInput } from "../schemas/card.schema";
+import { CreateCardInput, UpdateCardInput } from "../schemas/card.schema";
+import NotFoundError from "../errors/NotFoundError";
 
 export const createCard = async (data: CreateCardInput) => {
     // Find the last card in the selected column
@@ -50,4 +51,33 @@ export const getBoard = async (): Promise<Board<Card>> => {
     );
 
     return board;
+};
+
+export const updateCard = async (
+    id: string,
+    data: UpdateCardInput
+) => {
+
+    const existingCard = await prisma.card.findUnique({
+        where: {
+            id,
+        },
+    });
+
+    if (!existingCard) {
+        throw new NotFoundError("Card not found.");
+    }
+
+    const updatedCard = await prisma.card.update({
+        where: {
+            id,
+        },
+        data: {
+            title: data.title ?? existingCard.title,
+            status: data.status ?? existingCard.status,
+            position: data.position ?? existingCard.position,
+        },
+    });
+
+    return updatedCard;
 };
