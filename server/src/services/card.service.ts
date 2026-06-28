@@ -91,7 +91,8 @@ export const updateCard = async (
 };
 
 export const deleteCard = async (id: string) => {
-    return prisma.$transaction(async (tx) => {
+
+    await prisma.$transaction(async (tx) => {
 
         const existingCard = await tx.card.findUnique({
             where: { id },
@@ -103,10 +104,6 @@ export const deleteCard = async (id: string) => {
 
         await tx.card.delete({
             where: { id },
-        });
-
-        getIO().emit(SOCKET_EVENTS.CARD_DELETED, {
-            id,
         });
 
         await tx.card.updateMany({
@@ -123,6 +120,10 @@ export const deleteCard = async (id: string) => {
             },
         });
 
-        return null;
     });
+
+    // Transaction has committed here ✅
+    getIO().emit(SOCKET_EVENTS.CARD_DELETED, { id });
+
+    return null;
 };
