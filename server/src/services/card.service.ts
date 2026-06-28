@@ -81,3 +81,36 @@ export const updateCard = async (
 
     return updatedCard;
 };
+
+export const deleteCard = async (id: string) => {
+    return prisma.$transaction(async (tx) => {
+
+        const existingCard = await tx.card.findUnique({
+            where: { id },
+        });
+
+        if (!existingCard) {
+            throw new NotFoundError("Card not found.");
+        }
+
+        await tx.card.delete({
+            where: { id },
+        });
+
+        await tx.card.updateMany({
+            where: {
+                status: existingCard.status,
+                position: {
+                    gt: existingCard.position,
+                },
+            },
+            data: {
+                position: {
+                    decrement: 1,
+                },
+            },
+        });
+
+        return null;
+    });
+};

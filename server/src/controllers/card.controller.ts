@@ -66,3 +66,26 @@ export const updateCard = async (
 
     }
 };
+
+export const deleteCard = async (
+    req: Request<CardIdParams>,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+
+        await cardService.deleteCard(req.params.id);
+
+        return successResponse(
+            res,
+            200,
+            "Card deleted successfully.",
+            null
+        );
+
+    } catch (error) {
+
+        next(error);
+
+    }
+};

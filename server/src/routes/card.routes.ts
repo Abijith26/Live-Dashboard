@@ -28,4 +28,10 @@ router.patch(
     cardController.updateCard
 );
 
+router.delete(
+    "/:id",
+    validate(cardIdParamsSchema, "params"),
+    cardController.deleteCard
+);
+
 export default router;
