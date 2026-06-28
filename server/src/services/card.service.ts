@@ -2,6 +2,8 @@ import prisma from "../config/prisma";
 import { Board, Card } from "../types/card";
 import { CreateCardInput, UpdateCardInput } from "../schemas/card.schema";
 import NotFoundError from "../errors/NotFoundError";
+import { getIO } from "../sockets/socket";
+import { SOCKET_EVENTS } from "../constants/socket-events";
 
 export const createCard = async (data: CreateCardInput) => {
     // Find the last card in the selected column
@@ -25,6 +27,8 @@ export const createCard = async (data: CreateCardInput) => {
             position: nextPosition,
         },
     });
+
+    getIO().emit(SOCKET_EVENTS.CARD_CREATED, { card });
 
     return card;
 };
@@ -79,6 +83,10 @@ export const updateCard = async (
         },
     });
 
+    getIO().emit(SOCKET_EVENTS.CARD_UPDATED, {
+        card: updatedCard,
+    });
+
     return updatedCard;
 };
 
@@ -95,6 +103,10 @@ export const deleteCard = async (id: string) => {
 
         await tx.card.delete({
             where: { id },
+        });
+
+        getIO().emit(SOCKET_EVENTS.CARD_DELETED, {
+            id,
         });
 
         await tx.card.updateMany({

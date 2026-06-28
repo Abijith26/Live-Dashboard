@@ -5,6 +5,8 @@ import { MoveCardInput } from "../schemas/board.schema";
 import { Card, CardStatus } from "../types/card";
 import { clampPosition, getLastPosition, getMaxInsertPosition, shiftDestinationColumn, shiftPositionsDown, shiftPositionsUp, shiftSourceColumn } from "../utils/board.utils";
 import ConflictError from "../errors/ConflictError";
+import { getIO } from "../sockets/socket";
+import { SOCKET_EVENTS } from "../constants/socket-events";
 
 export const moveWithinColumn = async (
     tx: Prisma.TransactionClient,
@@ -81,7 +83,7 @@ export const moveCard = async (
     data: MoveCardInput
 ): Promise<Card> => {
 
-    return prisma.$transaction(async (tx) => {
+    const updatedCard = await prisma.$transaction(async (tx) => {
 
         const card = await tx.card.findUnique({
             where: {
@@ -144,6 +146,18 @@ export const moveCard = async (
         });
 
     });
+
+    try {
+
+        getIO().emit(SOCKET_EVENTS.BOARD_CHANGED);
+
+    } catch (error) {
+
+        console.error("Failed to emit board:changed event", error);
+
+    }
+
+    return updatedCard;
 
 };
 
