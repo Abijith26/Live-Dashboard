@@ -6,7 +6,6 @@ import { getIO } from "../sockets/socket";
 import { SOCKET_EVENTS } from "../constants/socket-events";
 
 export const createCard = async (data: CreateCardInput) => {
-    // Find the last card in the selected column
     const lastCardInColumn = await prisma.card.findFirst({
         where: {
             status: data.status,
@@ -16,10 +15,8 @@ export const createCard = async (data: CreateCardInput) => {
         },
     });
 
-    // Calculate the next position
     const nextPosition = (lastCardInColumn?.position ?? -1) + 1;
 
-    // Create the new card
     const card = await prisma.card.create({
         data: {
             title: data.title,
@@ -122,7 +119,6 @@ export const deleteCard = async (id: string) => {
 
     });
 
-    // Transaction has committed here ✅
     getIO().emit(SOCKET_EVENTS.CARD_DELETED, { id });
 
     return null;
