@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { errorResponse } from "../utils/response";
 import AppError from "../errors/AppError";
+import ConflictError from "../errors/ConflictError";
 
 const errorHandler = (
     error: Error,
@@ -11,6 +12,14 @@ const errorHandler = (
     console.error(error);
 
     if (error instanceof AppError) {
+        return errorResponse(
+            res,
+            error.statusCode,
+            error.message
+        );
+    }
+
+    if (error instanceof ConflictError) {
         return errorResponse(
             res,
             error.statusCode,

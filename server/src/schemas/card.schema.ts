@@ -36,6 +36,11 @@ export const updateCardSchema = z
             .int()
             .min(0, "Position cannot be negative")
             .optional(),
+
+        version: z
+            .number()
+            .int()
+            .nonnegative(),
     })
     .refine(
         (data) => Object.keys(data).length > 0,

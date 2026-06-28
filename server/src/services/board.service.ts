@@ -1,18 +1,18 @@
 import prisma from "../config/prisma";
 import NotFoundError from "../errors/NotFoundError";
-
+import type { Prisma } from "@prisma/client";
 import { MoveCardInput } from "../schemas/board.schema";
 import { Card, CardStatus } from "../types/card";
 import { clampPosition, getLastPosition, getMaxInsertPosition, shiftDestinationColumn, shiftPositionsDown, shiftPositionsUp, shiftSourceColumn } from "../utils/board.utils";
+import ConflictError from "../errors/ConflictError";
 
 export const moveWithinColumn = async (
+    tx: Prisma.TransactionClient,
     card: Card,
     requestedPosition: number
-): Promise<Card> => {
+): Promise<number> => {
 
-    const lastPosition = await getLastPosition(
-        card.status
-    );
+    const lastPosition = await getLastPosition(card.status);
 
     const targetPosition = clampPosition(
         requestedPosition,
@@ -20,56 +20,38 @@ export const moveWithinColumn = async (
     );
 
     if (card.position === targetPosition) {
-        return card;
+        return targetPosition;
     }
 
-    return prisma.$transaction(async (tx) => {
+    if (targetPosition < card.position) {
 
-        if (targetPosition < card.position) {
+        await shiftPositionsUp(
+            tx,
+            card.status,
+            card.position,
+            targetPosition
+        );
 
-            await shiftPositionsUp(
-                tx,
-                card.status,
-                card.position,
-                targetPosition
-            );
+    } else {
 
-        } else {
+        await shiftPositionsDown(
+            tx,
+            card.status,
+            card.position,
+            targetPosition
+        );
 
-            await shiftPositionsDown(
-                tx,
-                card.status,
-                card.position,
-                targetPosition
-            );
+    }
 
-        }
-
-        return tx.card.update({
-
-            where: {
-
-                id: card.id,
-
-            },
-
-            data: {
-
-                position: targetPosition,
-
-            },
-
-        });
-
-    });
-
+    return targetPosition;
 };
 
 export const moveAcrossColumns = async (
+    tx: Prisma.TransactionClient,
     card: Card,
     targetStatus: CardStatus,
     requestedPosition: number
-): Promise<Card> => {
+): Promise<number> => {
 
     const maxInsertPosition =
         await getMaxInsertPosition(targetStatus);
@@ -79,77 +61,89 @@ export const moveAcrossColumns = async (
         maxInsertPosition
     );
 
+    await shiftSourceColumn(
+        tx,
+        card.status,
+        card.position
+    );
+
+    await shiftDestinationColumn(
+        tx,
+        targetStatus,
+        targetPosition
+    );
+
+    return targetPosition;
+};
+
+export const moveCard = async (
+    id: string,
+    data: MoveCardInput
+): Promise<Card> => {
+
     return prisma.$transaction(async (tx) => {
 
-        await shiftSourceColumn(
-            tx,
-            card.status,
-            card.position
-        );
+        const card = await tx.card.findUnique({
+            where: {
+                id,
+            },
+        });
 
-        await shiftDestinationColumn(
-            tx,
-            targetStatus,
-            targetPosition
-        );
+        if (!card) {
+            throw new NotFoundError("Card not found.");
+        }
 
-        return tx.card.update({
+        let targetPosition: number;
+
+        if (card.status === data.status) {
+
+            targetPosition = await moveWithinColumn(
+                tx,
+                card,
+                data.position
+            );
+
+        } else {
+
+            targetPosition = await moveAcrossColumns(
+                tx,
+                card,
+                data.status,
+                data.position
+            );
+
+        }
+
+        const result = await tx.card.updateMany({
 
             where: {
-
                 id: card.id,
-
+                version: data.version,
             },
 
             data: {
-
-                status: targetStatus,
-
+                status: data.status,
                 position: targetPosition,
-
+                version: {
+                    increment: 1,
+                },
             },
 
+        });
+
+        if (result.count === 0) {
+            throw new ConflictError(
+                "This card has already been modified. Please refresh the board."
+            );
+        }
+
+        return tx.card.findUniqueOrThrow({
+            where: {
+                id: card.id,
+            },
         });
 
     });
 
 };
 
-export const moveCard = async (
-    id: string,
-    data: MoveCardInput
-) => {
-
-    // Step 1
-    // Find existing card
-    const existingCard = await prisma.card.findUnique({
-        where: {
-            id,
-        },
-    });
-
-    if (!existingCard) {
-        throw new NotFoundError("Card not found.");
-    }
-
-    // Step 2
-    // Determine movement type
-    const isSameColumn =
-        existingCard.status === data.status;
-
-    // Step 3
-    // Execute transaction
-    if (isSameColumn) {
-        return moveWithinColumn(
-            existingCard,
-            data.position
-        );
-    }
-
-    return moveAcrossColumns(
-        existingCard,
-        data.status,
-        data.position
-    );
-
-};

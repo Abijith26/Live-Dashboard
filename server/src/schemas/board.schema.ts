@@ -8,6 +8,11 @@ export const moveCardSchema = z.object({
         .number()
         .int()
         .min(0, "Position cannot be negative"),
+
+    version: z
+        .number()
+        .int()
+        .nonnegative(),
 });
 
 export type MoveCardInput = z.infer<typeof moveCardSchema>;
