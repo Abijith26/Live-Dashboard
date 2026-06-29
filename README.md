@@ -130,6 +130,18 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
 * Add drag preview (DragOverlay)
 * Better error notifications
 
+Frontend
+
+/ - renders the board
+
+Backend
+
+GET - /api/cards -> to fetch all the cards
+POST - /api/cards -> to create new cards
+PATCH - /api/card/:id -> to update the card title
+PATCH - /api/card/:id/move -> to update the card movement
+DELETE - /api/card/:id -> to delete the card
+
 Picked Optimistic locking with version field approach to ensure data consistency and to avoid multiple edits by users.
 Each time the card is moved or edited, the version field will get incremented and the field value is checked in the server side before making the edit.
 If the version field value doesn't match, we will send message saying this item is already changed by other user. refresh the board.
